@@ -1,0 +1,100 @@
+<Window x:Class="WinNavi.Dock.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WinNavi.Dock"
+        Title="WinNavi Dock"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight" AllowDrop="True"
+        Loaded="Window_Loaded" SizeChanged="Window_SizeChanged"
+        DragOver="Window_DragOver" Drop="Window_Drop">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+
+        <ContextMenu x:Key="ItemMenu" x:Shared="False" Opened="Menu_Opened" Closed="Menu_Closed">
+            <MenuItem Header="편집..." Click="Edit_Click" Visibility="{Binding CanEdit, Converter={StaticResource BoolToVis}}"/>
+            <MenuItem Header="독에 고정" Click="Pin_Click" Visibility="{Binding IsTemporary, Converter={StaticResource BoolToVis}}"/>
+            <MenuItem Header="뒤에 구분선 추가" Click="AddSeparatorAfter_Click"/>
+            <MenuItem Header="설정..." Click="Settings_Click"/>
+            <Separator/>
+            <MenuItem Header="제거" Click="Remove_Click" Visibility="{Binding IsTemporary, Converter={StaticResource InverseBoolToVis}}"/>
+            <MenuItem Header="종료" Click="Exit_Click"/>
+        </ContextMenu>
+
+        <DataTemplate x:Key="ItemTpl">
+            <Grid Background="Transparent" Cursor="Hand"
+                  Width="{Binding LayoutInfo.ItemSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                  Height="{Binding LayoutInfo.ItemSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                  Margin="{Binding LayoutInfo.ItemMargin, RelativeSource={RelativeSource AncestorType=Window}}"
+                  RenderTransformOrigin="{Binding LayoutInfo.Origin, RelativeSource={RelativeSource AncestorType=Window}}"
+                  ToolTip="{Binding Name}"
+                  ContextMenu="{StaticResource ItemMenu}"
+                  Loaded="Item_Loaded"
+                  MouseLeftButtonDown="Item_Down"
+                  MouseMove="Item_Move"
+                  MouseLeftButtonUp="Item_Click">
+                <Image Source="{Binding Icon}" RenderOptions.BitmapScalingMode="HighQuality"/>
+                <Grid Width="{Binding LayoutInfo.DotSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                      Height="{Binding LayoutInfo.DotSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                      HorizontalAlignment="{Binding LayoutInfo.DotH, RelativeSource={RelativeSource AncestorType=Window}}"
+                      VerticalAlignment="{Binding LayoutInfo.DotV, RelativeSource={RelativeSource AncestorType=Window}}"
+                      Margin="{Binding LayoutInfo.DotMargin, RelativeSource={RelativeSource AncestorType=Window}}"
+                      Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}">
+                    <Ellipse Fill="#2ECC71" Stroke="#80000000" StrokeThickness="1"/>
+                    <Viewbox Stretch="Uniform">
+                        <Path Data="M1,6 L5,10 L11,1" Stroke="White" StrokeThickness="2"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                    </Viewbox>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="SepTpl">
+            <Grid Background="Transparent"
+                  Width="{Binding LayoutInfo.SepWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                  Height="{Binding LayoutInfo.SepHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                  RenderTransformOrigin="{Binding LayoutInfo.Origin, RelativeSource={RelativeSource AncestorType=Window}}"
+                  ContextMenu="{StaticResource ItemMenu}"
+                  Loaded="Item_Loaded"
+                  MouseLeftButtonDown="Item_Down"
+                  MouseMove="Item_Move"
+                  MouseLeftButtonUp="Item_Click">
+                <Rectangle Fill="#99FFFFFF" RadiusX="1" RadiusY="1"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Width="{Binding LayoutInfo.LineWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                           Height="{Binding LayoutInfo.LineHeight, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            </Grid>
+        </DataTemplate>
+
+        <local:DockTemplateSelector x:Key="Sel"
+                                    Item="{StaticResource ItemTpl}"
+                                    Separator="{StaticResource SepTpl}"/>
+    </Window.Resources>
+    <Window.ContextMenu>
+        <ContextMenu Opened="Menu_Opened" Closed="Menu_Closed">
+            <MenuItem Header="설정..." Click="Settings_Click"/>
+            <MenuItem Header="종료" Click="Exit_Click"/>
+        </ContextMenu>
+    </Window.ContextMenu>
+    <Border x:Name="DockBar" CornerRadius="14" Padding="10,8" BorderThickness="1"
+            MouseMove="Dock_MouseMove" MouseLeave="Dock_MouseLeave">
+        <StackPanel Orientation="{Binding LayoutInfo.Orientation, RelativeSource={RelativeSource AncestorType=Window}}">
+            <ItemsControl x:Name="Items" ItemTemplateSelector="{StaticResource Sel}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="{Binding LayoutInfo.Orientation, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+            <Grid x:Name="Gear" Width="28" Height="28" Background="Transparent" Cursor="Hand"
+                  ToolTip="설정" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  Margin="{Binding LayoutInfo.GearMargin, RelativeSource={RelativeSource AncestorType=Window}}"
+                  MouseLeftButtonUp="Gear_Click">
+                <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="18"
+                           Foreground="#CCFFFFFF"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>

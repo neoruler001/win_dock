@@ -1,0 +1,11 @@
+# build output
+bin/
+obj/
+dist/
+
+# user-local settings
+.vs/
+*.user
+
+# editor
+.claude/write-guard.*
