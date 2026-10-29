@@ -6,8 +6,8 @@
   2. install.bat 을 더블클릭합니다.
   3. 질문에 답합니다.
        - 바탕화면 바로가기를 만들까요?
-       - Windows 시작 시 자동으로 실행할까요?
-  4. 설치가 끝나면 독이 자동으로 실행됩니다.
+  4. 설치가 끝나면 독이 자동으로 실행되고, Windows 시작 프로그램에도 등록되어
+     다음 부팅부터는 로그인하면 자동으로 실행됩니다.
 
   - 설치 위치:    %LOCALAPPDATA%\Programs\WinNavi Dock
   - 시작 메뉴에 "WinNavi Dock" 이 등록됩니다.
@@ -15,8 +15,12 @@
   - .NET 을 따로 설치할 필요가 없습니다. (실행에 필요한 런타임이 함께 들어 있습니다)
   - Windows 10 / 11 (64비트) 에서 동작합니다.
 
+자동 실행을 끄려면
+  설치 후에는 독의 설정(톱니바퀴) 또는 트레이 메뉴의 "Windows 시작 시 실행"
+  체크를 해제하면 됩니다.
+
 질문 없이 설치하려면 (배포 스크립트 등)
-  install.bat -Silent                  시작 시 실행: 예, 바탕화면 바로가기: 아니오
+  install.bat -Silent                  바탕화면 바로가기: 아니오 (시작 시 실행은 항상 등록)
   install.bat -Silent -Desktop         + 바탕화면 바로가기
   install.bat -Silent -NoStartup       시작 시 자동 실행 등록 안 함
   install.bat -Silent -NoLaunch        설치 후 실행하지 않음

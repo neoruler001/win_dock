@@ -2,9 +2,9 @@
 #   %LOCALAPPDATA%\Programs\WinNavi Dock 에 복사하고 시작 메뉴 바로가기와 '앱 및 기능' 제거 항목을 등록합니다.
 #   사용자 설정(%APPDATA%\WinNavi\dock.json)은 건드리지 않으므로 재설치해도 아이콘 구성이 유지됩니다.
 param(
-    [switch]$Silent,     # 질문 없이 기본값으로 설치 (시작 시 실행: 예, 바탕화면 바로가기: 아니오)
+    [switch]$Silent,     # 질문 없이 기본값으로 설치 (바탕화면 바로가기: 아니오; 시작 시 실행은 항상 등록)
     [switch]$Desktop,    # 바탕화면 바로가기 만들기
-    [switch]$NoStartup,  # Windows 시작 시 자동 실행 등록 안 함
+    [switch]$NoStartup,  # Windows 시작 시 자동 실행 등록 안 함 (기본은 설치하면 항상 등록)
     [switch]$NoLaunch    # 설치 후 실행하지 않음
 )
 $ErrorActionPreference = 'Stop'
@@ -42,7 +42,8 @@ if (-not (Test-Path (Join-Path $src 'WinNavi.Dock.exe'))) {
 }
 
 $wantDesktop = if ($Desktop) { $true } else { Ask '바탕화면 바로가기를 만들까요?' $false }
-$wantStartup = if ($NoStartup) { $false } else { Ask 'Windows 시작 시 자동으로 실행할까요?' $true }
+# 설치하면 항상 시작 프로그램에 등록합니다 (-NoStartup 으로만 끌 수 있음; 더 이상 설치 중에 묻지 않습니다).
+$wantStartup = -not $NoStartup
 
 Write-Host "$appName 설치 중..."
 
@@ -64,7 +65,7 @@ Get-ChildItem $dest -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
 New-Shortcut $startMenu
 if ($wantDesktop) { New-Shortcut $desktopLnk }
 
-# Windows 시작 시 실행 (앱 설정의 'Windows 시작 시 실행'과 같은 값)
+# Windows 부팅 시 자동 실행 (앱 설정의 'Windows 시작 시 실행'과 같은 값; 항상 등록, -NoStartup 시 제외)
 if ($wantStartup) { Set-ItemProperty -Path $runKey -Name 'WinNaviDock' -Value "`"$exe`"" }
 else { Remove-ItemProperty -Path $runKey -Name 'WinNaviDock' -ErrorAction SilentlyContinue }
 
