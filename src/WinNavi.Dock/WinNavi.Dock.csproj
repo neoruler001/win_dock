@@ -9,7 +9,7 @@
     <!-- WinForms only for NotifyIcon (tray) and Screen -->
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Product>WinNavi Dock</Product>
     <Description>WinNavi Dock</Description>
     <ApplicationManifest>app.manifest</ApplicationManifest>

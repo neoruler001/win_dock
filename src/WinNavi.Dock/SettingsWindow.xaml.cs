@@ -2,22 +2,27 @@ using System.Windows;
 using System.Windows.Controls;
 using WinNavi.Dock.Models;
 using WinNavi.Dock.Services;
+using WinForms = System.Windows.Forms;
 
 namespace WinNavi.Dock;
 
 public partial class SettingsWindow : Window
 {
+    // A selectable monitor; DeviceName "" means "the primary monitor" (matches DockSettings.Monitor's convention).
+    record MonitorOption(string Label, string DeviceName);
+
     readonly DockSettings _settings;
     readonly Action _changed;
     readonly Action _addSeparator;
     readonly Action<bool> _setAutoHide;
     readonly Action<bool> _setReserve;
+    readonly Action<string> _setMonitor;
     readonly Action<string> _backup;
     readonly Func<string, string?> _restore; // returns an error message, or null on success
     bool _ready;
 
     public SettingsWindow(DockSettings settings, Action changed, Action addSeparator,
-        Action<bool> setAutoHide, Action<bool> setReserve,
+        Action<bool> setAutoHide, Action<bool> setReserve, Action<string> setMonitor,
         Action<string> backup, Func<string, string?> restore)
     {
         InitializeComponent();
@@ -26,6 +31,7 @@ public partial class SettingsWindow : Window
         _addSeparator = addSeparator;
         _setAutoHide = setAutoHide;
         _setReserve = setReserve;
+        _setMonitor = setMonitor;
         _backup = backup;
         _restore = restore;
         SizeSlider.Minimum = DockLayout.MinIconSize;
@@ -37,6 +43,7 @@ public partial class SettingsWindow : Window
     void Reload()
     {
         _ready = false;
+        PopulateMonitors();
         CbAutoHide.IsChecked = _settings.AutoHide;
         CbReserve.IsChecked = _settings.ReserveSpace;
         (_settings.Position switch
@@ -50,7 +57,25 @@ public partial class SettingsWindow : Window
         SizeLabel.Text = $"{Math.Round(SizeSlider.Value)} px";
         OpacitySlider.Value = _settings.BackgroundOpacity * 100;
         OpacityLabel.Text = $"{Math.Round(OpacitySlider.Value)}%";
+        RemoveDistSlider.Value = _settings.RemoveDragDistance;
+        RemoveDistLabel.Text = $"{Math.Round(RemoveDistSlider.Value)} px";
         _ready = true;
+    }
+
+    // Lists every connected monitor so the dock can be placed on a secondary one, not just the primary.
+    void PopulateMonitors()
+    {
+        var options = WinForms.Screen.AllScreens.Select(s => new MonitorOption(
+            $"{s.DeviceName.TrimStart('\\', '.')}{(s.Primary ? " (주 모니터)" : "")}  {s.Bounds.Width}x{s.Bounds.Height}",
+            s.Primary ? "" : s.DeviceName)).ToList();
+        MonitorCombo.ItemsSource = options;
+        MonitorCombo.SelectedItem = options.FirstOrDefault(o => o.DeviceName == _settings.Monitor) ?? options[0];
+    }
+
+    void Monitor_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready || MonitorCombo.SelectedItem is not MonitorOption opt) return;
+        _setMonitor(opt.DeviceName);
     }
 
     void Position_Checked(object sender, RoutedEventArgs e)
@@ -76,6 +101,14 @@ public partial class SettingsWindow : Window
         if (!_ready) return;
         OpacityLabel.Text = $"{Math.Round(e.NewValue)}%";
         _settings.BackgroundOpacity = e.NewValue / 100;
+        _changed();
+    }
+
+    void RemoveDist_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_ready) return;
+        RemoveDistLabel.Text = $"{Math.Round(e.NewValue)} px";
+        _settings.RemoveDragDistance = Math.Round(e.NewValue);
         _changed();
     }
 

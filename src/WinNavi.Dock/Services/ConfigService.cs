@@ -23,6 +23,9 @@ public class DockSettings
 
     // Screen.DeviceName of the monitor to dock on; empty = primary.
     public string Monitor { get; set; } = "";
+
+    // Dragging a pinned icon this far from the dock (DIPs) and releasing it removes it.
+    public double RemoveDragDistance { get; set; } = 150;
 }
 
 public class DockConfig

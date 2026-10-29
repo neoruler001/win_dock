@@ -4,6 +4,10 @@
         Title="WinNavi 설정" Width="360" SizeToContent="Height" ResizeMode="NoResize"
         Topmost="True" WindowStartupLocation="CenterScreen">
     <StackPanel Margin="16">
+        <TextBlock Text="모니터" FontWeight="SemiBold" Margin="0,0,0,6"/>
+        <ComboBox x:Name="MonitorCombo" DisplayMemberPath="Label" Margin="0,0,0,16"
+                  SelectionChanged="Monitor_Changed"/>
+
         <TextBlock Text="위치" FontWeight="SemiBold" Margin="0,0,0,6"/>
         <WrapPanel Margin="0,0,0,16">
             <RadioButton x:Name="RbTop" Content="상단" GroupName="Pos" Margin="0,0,16,0" Checked="Position_Checked"/>
@@ -30,7 +34,16 @@
         <CheckBox x:Name="CbAutoHide" Content="자동 숨김 (독 가장자리에 마우스를 올리면 표시)"
                   Margin="0,0,0,4" Click="AutoHide_Click"/>
         <CheckBox x:Name="CbReserve" Content="화면 영역 예약 (다른 창이 독과 겹치지 않음)"
-                  Margin="0,0,0,16" Click="Reserve_Click"/>
+                  Margin="0,0,0,4" Click="Reserve_Click"/>
+
+        <DockPanel Margin="0,8,0,6">
+            <TextBlock x:Name="RemoveDistLabel" DockPanel.Dock="Right" Text="150 px" Width="50" TextAlignment="Right"/>
+            <TextBlock Text="끌어서 삭제 거리" FontWeight="SemiBold"/>
+        </DockPanel>
+        <Slider x:Name="RemoveDistSlider" Minimum="50" Maximum="400" TickFrequency="10" IsSnapToTickEnabled="True"
+                SmallChange="10" LargeChange="50" Margin="0,0,0,4" ValueChanged="RemoveDist_Changed"/>
+        <TextBlock Margin="0,0,0,16" TextWrapping="Wrap" Foreground="Gray"
+                   Text="고정된 아이콘을 독에서 이 거리만큼 끌어내서 놓으면 삭제됩니다."/>
 
         <TextBlock Text="백업 / 복원" FontWeight="SemiBold" Margin="0,0,0,6"/>
         <StackPanel Orientation="Horizontal">

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using WinNavi.Dock.Models;
 using WinNavi.Dock.Native;
@@ -61,6 +62,7 @@ public partial class MainWindow : Window
     Point _dragStart;
     DockItem? _dragItem;
     bool _dragged;
+    bool _dropOverDock; // Window_Drop fired: the cursor was over the dock at release, so it's a reorder, never a remove
 
     double IconSize => DockLayout.ClampSize(_config.Settings.IconSize);
     double Slot => IconSize + 12;                  // icon + 6px margin on each side along the main axis
@@ -194,7 +196,7 @@ public partial class MainWindow : Window
             return;
         }
         _settings = new SettingsWindow(_config.Settings, OnSettingsChanged, () => AddSeparatorAt(_items.Count),
-            SetAutoHide, SetReserve, BackupTo, RestoreFrom);
+            SetAutoHide, SetReserve, SetMonitor, BackupTo, RestoreFrom);
         _settings.Closed += (_, _) => _settings = null;
         _settings.Show();
     }
@@ -679,7 +681,47 @@ public partial class MainWindow : Window
         var item = _dragItem;
         _dragItem = null;
         _dragged = true;
-        DragDrop.DoDragDrop((DependencyObject)sender, new DataObject(typeof(DockItem), item), DragDropEffects.Move);
+
+        // Separators and auto-shown running-app icons aren't candidates for drag-to-remove: a separator has
+        // nothing to confirm removing, and a temporary icon would just reappear on the next refresh anyway.
+        bool removable = !item.IsSeparator && !item.IsTemporary;
+        bool farEnough = false;
+        _dropOverDock = false;
+        Win32.GetCursorPos(out var origin);
+
+        void OnQueryContinueDrag(object s, QueryContinueDragEventArgs qe)
+        {
+            if (!removable || qe.Action != DragAction.Continue) return;
+            if (!Win32.GetCursorPos(out var now)) return;
+            double dx = now.X - origin.X, dy = now.Y - origin.Y;
+            double distDip = Math.Sqrt(dx * dx + dy * dy) / _scale;
+            farEnough = distDip >= _config.Settings.RemoveDragDistance;
+        }
+
+        void OnGiveFeedback(object s, GiveFeedbackEventArgs ge)
+        {
+            if (!removable) return;
+            ge.UseDefaultCursors = false;
+            Mouse.SetCursor(farEnough ? Cursors.No : Cursors.Hand);
+            ge.Handled = true;
+        }
+
+        var el = (UIElement)sender;
+        el.QueryContinueDrag += OnQueryContinueDrag;
+        el.GiveFeedback += OnGiveFeedback;
+        try
+        {
+            DragDrop.DoDragDrop(el, new DataObject(typeof(DockItem), item), DragDropEffects.Move);
+        }
+        finally
+        {
+            el.QueryContinueDrag -= OnQueryContinueDrag;
+            el.GiveFeedback -= OnGiveFeedback;
+        }
+
+        // Only remove when the drop lands outside the dock; dropping back onto it is always a reorder,
+        // however far the cursor wandered on the way (e.g. dragging the first icon to the far end of a long dock).
+        if (removable && farEnough && !_dropOverDock) AnimateRemoval(item, () => _items.Remove(item));
     }
 
     void Item_Click(object sender, MouseButtonEventArgs e)
@@ -706,6 +748,7 @@ public partial class MainWindow : Window
     {
         if (e.Data.GetData(typeof(DockItem)) is DockItem moved)
         {
+            _dropOverDock = true;
             var pos = e.GetPosition(Items);
             int from = _items.IndexOf(moved);
             int to = Math.Clamp(IndexAtPos(Vertical ? pos.Y : pos.X), 0, _items.Count - 1);
@@ -713,17 +756,37 @@ public partial class MainWindow : Window
         }
         else if (e.Data.GetData(DataFormats.FileDrop) is string[] files)
         {
-            foreach (var file in files) AddItem(file);
+            var pos = e.GetPosition(Items);
+            int index = InsertIndexAtPos(Vertical ? pos.Y : pos.X);
+            foreach (var file in files)
+                if (AddItem(file, index: index)) index++; // keep multi-file drops in drop order
         }
         e.Handled = true;
     }
 
-    void AddItem(string path, string? name = null)
+    // Where a drop at position p should insert a NEW item: 0 is before everything, _items.Count is after
+    // everything. Unlike IndexAtPos (which snaps an existing item onto a slot for reordering), this doesn't
+    // clamp into the last slot, so dropping past the final icon appends instead of landing before it.
+    int InsertIndexAtPos(double p)
     {
-        if (_items.Any(i => string.Equals(i.Path, path, StringComparison.OrdinalIgnoreCase))) return;
+        double start = 0;
+        for (int i = 0; i < _items.Count; i++)
+        {
+            start += Len(_items[i]);
+            if (p < start) return i;
+        }
+        return _items.Count;
+    }
+
+    bool AddItem(string path, string? name = null, int? index = null)
+    {
+        if (_items.Any(i => string.Equals(i.Path, path, StringComparison.OrdinalIgnoreCase))) return false;
         name ??= System.IO.Path.GetFileNameWithoutExtension(path);
         if (name.Length == 0) name = System.IO.Path.GetFileName(path);
-        _items.Add(new DockItem { Name = name, Path = path, Icon = IconService.GetIcon(path) });
+        var item = new DockItem { Name = name, Path = path, Icon = IconService.GetIcon(path) };
+        if (index is int i) _items.Insert(Math.Clamp(i, 0, _items.Count), item);
+        else _items.Add(item);
+        return true;
     }
 
     void AddSeparatorAt(int index) =>
@@ -771,7 +834,33 @@ public partial class MainWindow : Window
     void Remove_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).DataContext is DockItem item)
-            _items.Remove(item);
+            AnimateRemoval(item, () => _items.Remove(item));
+    }
+
+    // Shrinks and fades the item's container in place, then runs afterRemoved (actually removing it from
+    // _items, which closes the gap). Falls back to removing immediately if the container can't be found.
+    void AnimateRemoval(DockItem item, Action afterRemoved)
+    {
+        if (Items.ItemContainerGenerator.ContainerFromItem(item) is not FrameworkElement container)
+        {
+            afterRemoved();
+            return;
+        }
+
+        var scale = new ScaleTransform(1, 1);
+        container.RenderTransform = scale;
+        container.RenderTransformOrigin = new Point(0.5, 0.5);
+
+        // Linear, not eased: an EaseIn shrink barely moves for the first ~70% of the duration then
+        // collapses abruptly at the end, which reads as a quick pop instead of a visible 1-second fade.
+        var duration = TimeSpan.FromMilliseconds(1000);
+        var shrink = new DoubleAnimation(1, 0, duration);
+        var fade = new DoubleAnimation(1, 0, duration);
+        fade.Completed += (_, _) => afterRemoved();
+
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, shrink);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, shrink);
+        container.BeginAnimation(UIElement.OpacityProperty, fade);
     }
 
     void Exit_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
