@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Continue'
 
 $procName = 'WinNavi.Dock'
 $dest = Join-Path $env:LOCALAPPDATA 'Programs\WinNavi Dock'
+$exe = Join-Path $dest 'WinNavi.Dock.exe'
 $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\WinNavi Dock.lnk'
 $desktopLnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'WinNavi Dock.lnk'
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\WinNaviDock'
@@ -28,7 +29,14 @@ if ($running) {
 }
 
 Remove-Item $startMenu, $desktopLnk -Force -ErrorAction SilentlyContinue
-Remove-ItemProperty -Path $runKey -Name 'WinNaviDock' -ErrorAction SilentlyContinue
+
+# Only remove the Run-key entry if it still points at this installed copy - a portable copy may have
+# registered itself separately since, and uninstalling here shouldn't un-register that one.
+$registered = (Get-ItemProperty -Path $runKey -Name 'WinNaviDock' -ErrorAction SilentlyContinue).WinNaviDock
+if ($registered -and $registered.Trim('"') -eq $exe) {
+    Remove-ItemProperty -Path $runKey -Name 'WinNaviDock' -ErrorAction SilentlyContinue
+}
+
 Remove-Item $uninstallKey -Recurse -Force -ErrorAction SilentlyContinue
 if ($PurgeSettings) { Remove-Item $settingsDir -Recurse -Force -ErrorAction SilentlyContinue }
 
