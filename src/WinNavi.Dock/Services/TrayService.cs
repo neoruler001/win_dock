@@ -23,10 +23,15 @@ public sealed class TrayService : IDisposable
         reserve.Click += (_, _) => setReserve(!settings.ReserveSpace);
         menu.Items.Add(reserve);
 
+        var startup = new WinForms.ToolStripMenuItem("Windows 시작 시 실행");
+        startup.Click += (_, _) => StartupService.SetEnabled(!StartupService.IsEnabled());
+        menu.Items.Add(startup);
+
         menu.Opening += (_, _) =>
         {
             autoHide.Checked = settings.AutoHide;
             reserve.Checked = settings.ReserveSpace;
+            startup.Checked = StartupService.IsEnabled();
         };
 
         var monitor = new WinForms.ToolStripMenuItem("모니터");
@@ -46,14 +51,6 @@ public sealed class TrayService : IDisposable
         };
         monitor.DropDownItems.Add("-"); // placeholder so the submenu arrow shows
         menu.Items.Add(monitor);
-
-        var startup = new WinForms.ToolStripMenuItem("Windows 시작 시 실행")
-        {
-            CheckOnClick = true,
-            Checked = StartupService.IsEnabled(),
-        };
-        startup.CheckedChanged += (_, _) => StartupService.SetEnabled(startup.Checked);
-        menu.Items.Add(startup);
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add("종료", null, (_, _) => exit());

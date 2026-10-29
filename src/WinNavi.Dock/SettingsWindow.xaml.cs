@@ -46,6 +46,7 @@ public partial class SettingsWindow : Window
         PopulateMonitors();
         CbAutoHide.IsChecked = _settings.AutoHide;
         CbReserve.IsChecked = _settings.ReserveSpace;
+        CbStartup.IsChecked = StartupService.IsEnabled();
         (_settings.Position switch
         {
             DockEdge.Top => RbTop,
@@ -114,6 +115,7 @@ public partial class SettingsWindow : Window
 
     void AutoHide_Click(object sender, RoutedEventArgs e) => _setAutoHide(CbAutoHide.IsChecked == true);
     void Reserve_Click(object sender, RoutedEventArgs e) => _setReserve(CbReserve.IsChecked == true);
+    void Startup_Click(object sender, RoutedEventArgs e) => StartupService.SetEnabled(CbStartup.IsChecked == true);
 
     void AddSeparator_Click(object sender, RoutedEventArgs e) => _addSeparator();
 

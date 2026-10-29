@@ -35,6 +35,8 @@
                   Margin="0,0,0,4" Click="AutoHide_Click"/>
         <CheckBox x:Name="CbReserve" Content="화면 영역 예약 (다른 창이 독과 겹치지 않음)"
                   Margin="0,0,0,4" Click="Reserve_Click"/>
+        <CheckBox x:Name="CbStartup" Content="Windows 시작 시 실행"
+                  Margin="0,0,0,4" Click="Startup_Click"/>
 
         <DockPanel Margin="0,8,0,6">
             <TextBlock x:Name="RemoveDistLabel" DockPanel.Dock="Right" Text="150 px" Width="50" TextAlignment="Right"/>
